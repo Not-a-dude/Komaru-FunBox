@@ -1,5 +1,6 @@
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot import DISABLE_AI
 from bot.database.constants import CATEGORIES, DEFAULT_SETTINGS
 
 
@@ -17,6 +18,8 @@ def category_settings_keyboard(category: str, settings_state: dict, owner_id: in
 
     # Фильтруем настройки по категории
     for setting in DEFAULT_SETTINGS:
+        if DISABLE_AI and setting[0] in ("who", "user_prompts"):
+            continue
         if setting[1] == category:
             name = setting[0]
             value = settings_state.get(name)

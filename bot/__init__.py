@@ -46,6 +46,7 @@ for path in (DATA_DIR, CACHE_DIR, COMMANDS_DIR):
 branch_name = get_git_branch(parent_dir)
 IS_TEST = branch_name == "test" or branch_name is None
 IS_TEST_ENV = Path(DATA_DIR / "test").is_file()
+DISABLE_AI = os.getenv("DISABLE_AI", "false").strip().lower() in ("true", "1", "yes")
 if IS_TEST:
     level = logging.DEBUG
 else:

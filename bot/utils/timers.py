@@ -12,7 +12,7 @@ import aiofiles
 import aiohttp
 from aiogram import Bot
 
-from bot import BASE_DIR, FREE_GAMES_PATH, STOCKS_PATH, logger
+from bot import BASE_DIR, DISABLE_AI, FREE_GAMES_PATH, STOCKS_PATH, logger
 from bot.database.database import Database
 from bot.utils.ai.ai_api import check_models, get_ai_sector_impacts
 from bot.utils.bot_tools import fetch_marketaux_news
@@ -352,6 +352,10 @@ async def change_stocks():
 async def update_sector_impacts_task():
     while True:
         try:
+            if DISABLE_AI:
+                await asyncio.sleep(AI_NEWS_TICK_SECONDS)
+                continue
+
             use_marketaux = os.getenv("INVEST_USE_MARKETAUX", "true").lower() == "true"
             if not use_marketaux:
                 logger.info("⏭️ marketaux отключён")
@@ -400,7 +404,8 @@ async def check_models_timer():
     while True:
         await asyncio.sleep(43200)
         try:
-            await check_models(include_image=True, force_refresh=True)
+            if not DISABLE_AI:
+                await check_models(include_image=True, force_refresh=True)
         except Exception as e:
             logger.critical(
                 f"❌ Не удалось обновить ИИ модели с OnlySq: {e}", exc_info=True

@@ -13,6 +13,7 @@ from aiogram.enums import ParseMode
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message
 
+from bot import DISABLE_AI
 from bot.database.database import Database
 from bot.handlers.ai.text_ai import (
     process_active_chat,
@@ -57,20 +58,21 @@ async def text(message: Message, bot: Bot, state: FSMContext, db: Database):
         chat_id = message.chat.id
         text_msg = message.text
 
-        handled = await process_active_chat(message, state, db, text_msg)
-        if handled:
-            await db.log_command(message.from_user.id, "ai_chat")
-            return
+        if not DISABLE_AI:
+            handled = await process_active_chat(message, state, db, text_msg)
+            if handled:
+                await db.log_command(message.from_user.id, "ai_chat")
+                return
 
-        handled = await process_user_prompt_trigger(message, db, text_msg)
-        if handled:
-            await db.log_command(message.from_user.id, "ai_prompt")
-            return
+            handled = await process_user_prompt_trigger(message, db, text_msg)
+            if handled:
+                await db.log_command(message.from_user.id, "ai_prompt")
+                return
 
-        handled = await process_explain_reply(message, db)
-        if handled:
-            await db.log_command(message.from_user.id, "ai_explain")
-            return
+            handled = await process_explain_reply(message, db)
+            if handled:
+                await db.log_command(message.from_user.id, "ai_explain")
+                return
 
         if message.chat.type in ["channel", "private"]:
             return

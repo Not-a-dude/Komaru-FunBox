@@ -1,12 +1,15 @@
 # Одинаков с settings_keyboard.py, в будующем лучше объединить оба файла
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from bot import DISABLE_AI
 from bot.database.constants import DEFAULT_USER_SETTINGS, USER_CATEGORIES
 
 
 def main_settings_keyboard(owner_id: int):
     builder = InlineKeyboardBuilder()
     for category in USER_CATEGORIES:
+        if DISABLE_AI and category == "ИИ":
+            continue
         builder.button(text=category, callback_data=f"ucategory:{category}:{owner_id}")
     builder.button(text="🔒 Закрыть", callback_data=f"close_settings:{owner_id}")
     builder.adjust(2)
@@ -18,6 +21,8 @@ def category_settings_keyboard(category: str, settings_state: dict, owner_id: in
 
     # Фильтруем настройки по категории
     for setting in DEFAULT_USER_SETTINGS:
+        if DISABLE_AI and setting[1] == "ИИ":
+            continue
         if setting[1] == category:
             name = setting[0]
             value = settings_state.get(name)

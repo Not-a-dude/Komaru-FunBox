@@ -12,7 +12,7 @@ from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.client.telegram import PRODUCTION, TEST
 from aiogram.methods import DeleteWebhook
 
-from bot import IS_TEST, IS_TEST_ENV, PYRO_HOST, PYRO_PORT, logger
+from bot import DISABLE_AI, IS_TEST, IS_TEST_ENV, PYRO_HOST, PYRO_PORT, logger
 from bot.database.database import Database
 from bot.database.redis_client import redis_db
 from bot.middlewares.chatwatcher import ChatWatcher
@@ -93,23 +93,25 @@ async def main():
         clear_cache()
         await db.connect()
         await redis_db.connect(port=redis_port)
-        await check_models(include_image=True)
+        if not DISABLE_AI:
+            await check_models(include_image=True)
         await apply_all_command_sets(bot)
     except Exception:
         logger.fatal(
             f"📛 Не удалось выполнить подготовку.\n\nTraceback: {format_exc()}"
         )
 
-    dp.include_routers(
+    main_routers = [
         aliases_router,
         admin_router,
         base_router,
         etc_router,
         rp_router,
-        ai_router,
+    ]
+    if not DISABLE_AI:
+        main_routers.extend([ai_router, prompts_router, image_router])
+    main_routers.extend([
         mods_router,
-        prompts_router,
-        image_router,
         settings_router,
         usettings_router,
         service_router,
@@ -120,7 +122,9 @@ async def main():
         invest_router,
         premium_router,
         text_router,
-    )
+    ])
+
+    dp.include_routers(*main_routers)
 
     uvicorn_exec = (
         Path(sys.prefix) / "Scripts" / "uvicorn.exe"

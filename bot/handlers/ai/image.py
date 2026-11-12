@@ -7,6 +7,7 @@ from aiogram import Bot, F, Router
 from aiogram.enums import ParseMode
 from aiogram.types import Message
 
+from bot import DISABLE_AI
 from bot.database.database import Database
 from bot.handlers.ai.ai import DEFAULT_MODEL
 from bot.utils.ai.ai_api import stream_text_api
@@ -23,6 +24,8 @@ image_router = Router()
 async def handle_prompt_with_image(message: Message, bot: Bot, db: Database) -> None:
     """Обработка кастомных промптов с изображениями."""
     try:
+        if DISABLE_AI:
+            return
         assert message.from_user is not None
         user1 = message.from_user
         chat_id = message.chat.id
