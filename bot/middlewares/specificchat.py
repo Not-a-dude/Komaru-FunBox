@@ -41,11 +41,15 @@ class SpecificChat(BaseMiddleware):
                         return None
                 return await handler(event, data)
 
-        except Exception:
-            logger.error("❌ Ошибка в SpecificChat:", exc_info=True)
-            if self.owner_id:
-                await bot.send_message(
-                    self.owner_id,
-                    f"❌ Ошибка в SpecificChat:\n\n{traceback.format_exc()}",
-                )
+        except Exception as e:
+            if type(e).__name__ != "TelegramRetryAfter":
+                logger.error("❌ Ошибка в SpecificChat:", exc_info=True)
+                if self.owner_id:
+                    try:
+                        await bot.send_message(
+                            self.owner_id,
+                            f"❌ Ошибка в SpecificChat:\n\n{traceback.format_exc()}",
+                        )
+                    except Exception:
+                        pass
             return await handler(event, data)

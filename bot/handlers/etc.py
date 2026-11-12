@@ -260,82 +260,86 @@ async def cmd_nillerxs(message: Message):
 
 @etc_router.message(Command("bonum"))
 async def cmd_bonum(message: Message, db: Database, bot: Bot):
-    user_id = message.from_user.id if message.from_user else 0
-    if not user_id:
-        return
+    try:
+        user_id = message.from_user.id if message.from_user else 0
+        if not user_id:
+            return
 
-    cooldown = eco_config.get("bonum_cooldown", 86400)
-    if not await db.is_command_available(user_id, "bonum", cooldown):
-        rem = await db.get_cooldown_remaining(user_id, "bonum")
-        return await message.reply(
-            f"⏳ Попробуй через {rem // 3600}ч {(rem % 3600) // 60}м."
-        )
+        cooldown = eco_config.get("bonum_cooldown", 86400)
+        if not await db.is_command_available(user_id, "bonum", cooldown):
+            rem = await db.get_cooldown_remaining(user_id, "bonum")
+            return await message.reply(
+                f"⏳ Попробуй через {rem // 3600}ч {(rem % 3600) // 60}м."
+            )
 
-    now = int(time.time())
-    raw_ts = await db.get_global_user_param(user_id, "bonum_ts")
-    last_use = int(raw_ts) if isinstance(raw_ts, (int, str, float)) else 0
+        now = int(time.time())
+        raw_ts = await db.get_global_user_param(user_id, "bonum_ts")
+        last_use = int(raw_ts) if isinstance(raw_ts, (int, str, float)) else 0
 
-    raw_streak = await db.get_global_user_param(user_id, "bonum_streak")
-    streak = int(raw_streak) if isinstance(raw_streak, (int, str, float)) else 0
+        raw_streak = await db.get_global_user_param(user_id, "bonum_streak")
+        streak = int(raw_streak) if isinstance(raw_streak, (int, str, float)) else 0
 
-    # Пропуск до одних суток сверх кулдауна не рвёт стрик.
-    grace = eco_config.get("bonum_streak_grace", 86400)
-    if last_use > 0 and (now - last_use) <= (cooldown + grace):
-        streak += 1
-    else:
-        streak = 1
+        # Пропуск до одних суток сверх кулдауна не рвёт стрик.
+        grace = eco_config.get("bonum_streak_grace", 86400)
+        if last_use > 0 and (now - last_use) <= (cooldown + grace):
+            streak += 1
+        else:
+            streak = 1
 
-    # Множитель стрика: +5% за день, потолок +75% (с 16-го дня подряд).
-    streak_step = eco_config.get("bonum_streak_step", 0.05)
-    streak_cap = eco_config.get("bonum_streak_max_bonus", 0.75)
-    streak_mult = 1.0 + min(max(streak - 1, 0) * streak_step, streak_cap)
+        # Множитель стрика: +5% за день, потолок +75% (с 16-го дня подряд).
+        streak_step = eco_config.get("bonum_streak_step", 0.05)
+        streak_cap = eco_config.get("bonum_streak_max_bonus", 0.75)
+        streak_mult = 1.0 + min(max(streak - 1, 0) * streak_step, streak_cap)
 
-    choice = random.choices([1, 2, 3, 4], weights=[1, 14, 55, 30], k=1)[0]
-    bonus_amount = 0
-    cur = eco_config.get("currency_sign", "🪙")
-    sticker_id = BONUM_STICKERS_ID.get(1)
-
-    if choice == 1:
-        base = random.randint(*eco_config["bonum_4_rewards"])
-        bonus_amount = int(base * streak_mult)
-        sticker_id = BONUM_STICKERS_ID.get(4)
-        msg = f"🏆 <b>Невероятно повезло!</b>\n\n🍀 Редкий бонум!\n💰 Награда: {bonus_amount} {cur}"
-    elif choice == 2:
-        base = random.randint(*eco_config["bonum_3_rewards"])
-        bonus_amount = int(base * streak_mult)
-        sticker_id = BONUM_STICKERS_ID.get(3)
-        msg = f"🌟 <b>Удача!</b>\n\nВы получили солидный бонус: {bonus_amount} {cur}"
-    elif choice == 3:
-        base = random.randint(*eco_config["bonum_2_rewards"])
-        bonus_amount = int(base * streak_mult)
-        sticker_id = BONUM_STICKERS_ID.get(2)
-        msg = f"✨ <b>Бонус:</b>\n\nВы получили {bonus_amount} {cur}"
-    else:
-        penalty = random.randint(*eco_config["bonum_1_fines"])
-        bonus_amount = -penalty
+        choice = random.choices([1, 2, 3, 4], weights=[1, 14, 55, 30], k=1)[0]
+        bonus_amount = 0
+        cur = eco_config.get("currency_sign", "🪙")
         sticker_id = BONUM_STICKERS_ID.get(1)
-        msg = f"💀 <b>Неудача...</b>\n\nВы потеряли: {penalty} {cur}"
 
-    if streak > 1 and choice != 4:
-        msg += f"\n<i>🔥 Стрик: {streak} дн. (x{streak_mult:.2f})</i>"
-    elif streak > 1:
-        msg += f"\n<i>🔥 Стрик: {streak} дн.</i>"
+        if choice == 1:
+            base = random.randint(*eco_config["bonum_4_rewards"])
+            bonus_amount = int(base * streak_mult)
+            sticker_id = BONUM_STICKERS_ID.get(4)
+            msg = f"🏆 <b>Невероятно повезло!</b>\n\n🍀 Редкий бонум!\n💰 Награда: {bonus_amount} {cur}"
+        elif choice == 2:
+            base = random.randint(*eco_config["bonum_3_rewards"])
+            bonus_amount = int(base * streak_mult)
+            sticker_id = BONUM_STICKERS_ID.get(3)
+            msg = f"🌟 <b>Удача!</b>\n\nВы получили солидный бонус: {bonus_amount} {cur}"
+        elif choice == 3:
+            base = random.randint(*eco_config["bonum_2_rewards"])
+            bonus_amount = int(base * streak_mult)
+            sticker_id = BONUM_STICKERS_ID.get(2)
+            msg = f"✨ <b>Бонус:</b>\n\nВы получили {bonus_amount} {cur}"
+        else:
+            penalty = random.randint(*eco_config["bonum_1_fines"])
+            bonus_amount = -penalty
+            sticker_id = BONUM_STICKERS_ID.get(1)
+            msg = f"💀 <b>Неудача...</b>\n\nВы потеряли: {penalty} {cur}"
 
-    raw_money = await db.get_global_user_param(user_id, "money")
-    user_bal = int(raw_money) if isinstance(raw_money, (int, str, float)) else 0
+        if streak > 1 and choice != 4:
+            msg += f"\n<i>🔥 Стрик: {streak} дн. (x{streak_mult:.2f})</i>"
+        elif streak > 1:
+            msg += f"\n<i>🔥 Стрик: {streak} дн.</i>"
 
-    await db.set_global_user_param(user_id, "money", user_bal + bonus_amount)
-    await db.set_global_user_param(user_id, "bonum_ts", now)
-    await db.set_global_user_param(user_id, "bonum_streak", streak)
-    await db.log_command(user_id, "bonum")
+        raw_money = await db.get_global_user_param(user_id, "money")
+        user_bal = int(raw_money) if isinstance(raw_money, (int, str, float)) else 0
 
-    await bot.send_sticker(
-        message.chat.id,
-        sticker_id
-        or "CAACAgIAAyEFAASbCRfOAAJW2mjT7S6mjNl2eq1K3OsShmsV2K8AAzotAAIEtJhLnn7lET7JhBM2BA",
-        reply_to_message_id=message.message_id,
-    )
-    await message.answer(msg, parse_mode="HTML")
+        await db.set_global_user_param(user_id, "money", user_bal + bonus_amount)
+        await db.set_global_user_param(user_id, "bonum_ts", now)
+        await db.set_global_user_param(user_id, "bonum_streak", streak)
+        await db.log_command(user_id, "bonum")
+
+        await bot.send_sticker(
+            message.chat.id,
+            sticker_id
+            or "CAACAgIAAyEFAASbCRfOAAJW2mjT7S6mjNl2eq1K3OsShmsV2K8AAzotAAIEtJhLnn7lET7JhBM2BA",
+            reply_to_message_id=message.message_id,
+        )
+        await message.answer(msg, parse_mode="HTML")
+    except Exception as e:
+        if type(e).__name__ != "TelegramRetryAfter":
+            await error_report(message, bot, "bonum", traceback.format_exc())
 
 
 @etc_router.message(
