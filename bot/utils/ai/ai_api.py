@@ -347,6 +347,10 @@ async def stream_text_api(
             logger.warning(
                 f"⚠️ Стрим модели {candidate} прерван: {type(e).__name__}: {e}"
             )
+            _mark_model_failed(candidate, e)
+            last_exc = e
+            if not received_content:
+                continue
             raise
 
     if last_exc is not None:
