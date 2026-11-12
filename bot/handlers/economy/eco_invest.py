@@ -1,6 +1,7 @@
 import traceback
 
 from aiogram import Bot, F, Router
+from aiogram.exceptions import TelegramBadRequest, TelegramRetryAfter
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -56,9 +57,15 @@ async def cb_show_stocks(
         if user_id != callback_data.user_id:
             await callback.answer("📛 Не ваш колбэк!")
             return
-        await callback.message.edit_text(
-            "📈 Доступные акции для покупки:", reply_markup=make_stocks_kb(user_id)
-        )
+        try:
+            await callback.message.edit_text(
+                "📈 Доступные акции для покупки:", reply_markup=make_stocks_kb(user_id)
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            await callback.answer("⏳ Слишком частые запросы, подождите немного", show_alert=True)
     except Exception:
         await error_report(callback.message, bot, "buy_stock", traceback.format_exc())
 
@@ -81,9 +88,15 @@ async def cb_buy_stock_item(
             return
         user_bal = await db.get_global_user_param(user_id, "money") or 0
         kb = make_buy_options_kb(user_id, stock_id, round(stock_price, 2), user_bal)
-        await callback.message.edit_text(
-            f"📈 {stock['name']} — {stock_price}$\nВыберите опцию:", reply_markup=kb
-        )
+        try:
+            await callback.message.edit_text(
+                f"📈 {stock['name']} — {stock_price}$\nВыберите опцию:", reply_markup=kb
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            await callback.answer("⏳ Слишком частые запросы, подождите немного", show_alert=True)
     except Exception:
         await error_report(
             callback.message, bot, "buy_stock_item", traceback.format_exc()
@@ -126,10 +139,16 @@ async def cb_quick_buy(
             f"✅ Куплено: {stock['name']} x{qty} за {total_cost}$\n🔥 Комиссия: {commission}$\n💸 Списано: {total_cost_with_fee}$",
             show_alert=True,
         )
-        await callback.message.edit_text(
-            f"👋 Привет, {callback.from_user.first_name}, выбери опцию ниже для продолжения",
-            reply_markup=make_menu_kb(user_id),
-        )
+        try:
+            await callback.message.edit_text(
+                f"👋 Привет, {callback.from_user.first_name}, выбери опцию ниже для продолжения",
+                reply_markup=make_menu_kb(user_id),
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            pass
     except Exception:
         await error_report(callback.message, bot, "quick_buy", traceback.format_exc())
 
@@ -179,9 +198,15 @@ async def cb_sell_stock(
             return
         market = load_stocks()
         kb = make_sell_stocks_kb(user_id, user_stocks, market)
-        await callback.message.edit_text(
-            "📤 Выберите акцию для продажи:", reply_markup=kb
-        )
+        try:
+            await callback.message.edit_text(
+                "📤 Выберите акцию для продажи:", reply_markup=kb
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            await callback.answer("⏳ Слишком частые запросы, подождите немного", show_alert=True)
     except Exception:
         await error_report(callback.message, bot, "sell_stock", traceback.format_exc())
 
@@ -212,10 +237,16 @@ async def cb_sell_stock_item(
             return
         owned = len(user_stocks)
         kb = make_sell_options_kb(user_id, int(stock_id), owned)
-        await callback.message.edit_text(
-            f"📤 {info['name']} — {round(info['price'], 2)}$\nВыберите опцию:",
-            reply_markup=kb,
-        )
+        try:
+            await callback.message.edit_text(
+                f"📤 {info['name']} — {round(info['price'], 2)}$\nВыберите опцию:",
+                reply_markup=kb,
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            await callback.answer("⏳ Слишком частые запросы, подождите немного", show_alert=True)
     except Exception:
         await error_report(
             callback.message, bot, "sell_stock_item", traceback.format_exc()
@@ -273,10 +304,16 @@ async def cb_quick_sell(
             profit_message = f"🔴 Убыток: {profit:.2f}$"
         answer_text = f"✅ Продана акция '{stock_name}' x{qty}\n🔥 Комиссия: {commission}$\n💰 Получено: {net_get}$ (ср. цена покупки: {avg_buy:.2f}$)\n{profit_message}"
         await callback.answer(answer_text, show_alert=True)
-        await callback.message.edit_text(
-            f"👋 Привет, {callback.from_user.first_name}, выбери опцию:",
-            reply_markup=make_menu_kb(user_id),
-        )
+        try:
+            await callback.message.edit_text(
+                f"👋 Привет, {callback.from_user.first_name}, выбери опцию:",
+                reply_markup=make_menu_kb(user_id),
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            pass
     except Exception:
         await error_report(callback.message, bot, "quick_sell", traceback.format_exc())
 
@@ -468,7 +505,13 @@ async def cb_my_portfolio(
             text += f"- {name} ({data['count']} шт.): {cur_per}$ за шт. (ср. цена покупки: {avg_buy:.2f}$)\n"
             total_value += data["current_total"]
         text += f"\n💰 Общая стоимость: {total_value}$"
-        await callback.message.edit_text(text, reply_markup=make_portfolio_kb(user_id))
+        try:
+            await callback.message.edit_text(text, reply_markup=make_portfolio_kb(user_id))
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            await callback.answer("⏳ Слишком частые запросы, подождите немного", show_alert=True)
     except Exception:
         await error_report(
             callback.message, bot, "my_portfolio", traceback.format_exc()
@@ -482,10 +525,16 @@ async def cb_back(callback: CallbackQuery, bot: Bot, callback_data: InvestMenuCa
         if user_id != callback_data.user_id:
             await callback.answer("📛 Не ваш колбэк!")
             return
-        await callback.message.edit_text(
-            f"👋 Привет, {callback.from_user.first_name}, выбери опцию ниже для продолжения",
-            reply_markup=make_menu_kb(user_id),
-        )
+        try:
+            await callback.message.edit_text(
+                f"👋 Привет, {callback.from_user.first_name}, выбери опцию ниже для продолжения",
+                reply_markup=make_menu_kb(user_id),
+            )
+        except TelegramBadRequest as e:
+            if "message is not modified" not in str(e):
+                raise
+        except TelegramRetryAfter:
+            pass
     except Exception:
         await error_report(
             callback.message, bot, "back_to_menu", traceback.format_exc()
